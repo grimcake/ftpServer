@@ -12,8 +12,8 @@ ThreadPool::~ThreadPool()
 
 void ThreadPool::tp_init(int thread_num, int queue_max_num)
 {
-    thread_num = thread_num;
-    queue_max_num = queue_max_num;
+    this->thread_num = thread_num;
+    this->queue_max_num = queue_max_num;
     queue_cur_num = 0;
     head = nullptr;
     tail = nullptr;
@@ -54,65 +54,65 @@ void ThreadPool::tp_init(int thread_num, int queue_max_num)
     
 }
 
-int ThreadPool::tp_destroy(ThreadPool *pool)
+int ThreadPool::tp_destroy()
 {
-    pthread_mutex_lock(&(pool->mutex));
-    if(pool->pool_close)
+    pthread_mutex_lock(&(mutex));
+    if(pool_close)
     {
-        pthread_mutex_unlock(&(pool->mutex));
+        pthread_mutex_unlock(&(mutex));
         return -1;
     }
 
-    while(pool->queue_cur_num != 0)
+    while(queue_cur_num != 0)
     {
-        pthread_cond_wait(&(pool->queue_empty), &(pool->mutex));
+        pthread_cond_wait(&(queue_empty), &(mutex));
     }
-    pool->pool_close = 1;
-    pthread_mutex_unlock(&(pool->mutex));
+    pool_close = 1;
+    pthread_mutex_unlock(&(mutex));
 
-    pthread_cond_broadcast(&(pool->queue_not_empty));
-    pthread_cond_broadcast(&(pool->queue_not_full));
+    pthread_cond_broadcast(&(queue_not_empty));
+    pthread_cond_broadcast(&(queue_not_full));
 
-    for(int i = 0; i<pool->thread_num; i++)
+    for(int i = 0; i<thread_num; i++)
     {
-        pthread_join(pool->pthreads[i], NULL);
+        pthread_join(pthreads[i], NULL);
     }
 
-    pthread_mutex_destroy(&(pool->mutex));
-    pthread_cond_destroy(&(pool->queue_empty));
-    pthread_cond_destroy(&(pool->queue_not_empty));
-    pthread_cond_destroy(&(pool->queue_not_full));
+    pthread_mutex_destroy(&(mutex));
+    pthread_cond_destroy(&(queue_empty));
+    pthread_cond_destroy(&(queue_not_empty));
+    pthread_cond_destroy(&(queue_not_full));
 
-    free(pool->pthreads);
+    free(pthreads);
 
     struct job *p;
-    while(pool->head != nullptr)
+    while(head != nullptr)
     {
-        p = pool->head;
-        pool->head = p->next;
+        p = head;
+        head = p->next;
         free(p);
     }
 
     free(p);
 }
 
-int ThreadPool::tp_addtask(ThreadPool *pool, void* (*callback_function)(void *arg), void *arg)
+int ThreadPool::tp_addtask(void* (*callback_function)(void *arg), void *arg)
 {
-    pthread_mutex_lock(&(pool->mutex));
-    while((pool->queue_cur_num == pool->queue_max_num) && !(pool->pool_close))
+    pthread_mutex_lock(&(mutex));
+    while((queue_cur_num == queue_max_num) && !(pool_close))
     {
-        pthread_cond_wait(&(pool->queue_not_full), &(pool->mutex));
+        pthread_cond_wait(&(queue_not_full), &(mutex));
     }
-    if(pool->pool_close)
+    if(pool_close)
     {
-        pthread_mutex_unlock(&(pool->mutex));
+        pthread_mutex_unlock(&(mutex));
         return -1;
     }
 
     struct job *pjob = (struct job *)malloc(sizeof(struct job));
     if(pjob == nullptr)
     {
-        pthread_mutex_unlock(&(pool->mutex));
+        pthread_mutex_unlock(&(mutex));
         return -1;
     }
 
@@ -120,19 +120,19 @@ int ThreadPool::tp_addtask(ThreadPool *pool, void* (*callback_function)(void *ar
     pjob->arg = arg;
     pjob->next = nullptr;
 
-    if(pool->head == nullptr)
+    if(head == nullptr)
     {
-        pool->head = pool->tail = pjob;
-        pthread_cond_broadcast(&(pool->queue_not_empty));
+        head = tail = pjob;
+        pthread_cond_broadcast(&(queue_not_empty));
     }
     else
     {
-        pool->tail->next = pjob;
-        pool->tail = pjob;
+        tail->next = pjob;
+        tail = pjob;
     }
     
-    pool->queue_cur_num++;
-    pthread_mutex_unlock(&(pool->mutex));
+    queue_cur_num++;
+    pthread_mutex_unlock(&(mutex));
     return 0;
 }
 
@@ -166,7 +166,7 @@ void* ThreadPool::tp_fun(void *arg)
             pool->head = pjob->next;
         }
         
-        /*if(pool->queue_cur_num == 0)
+        if(pool->queue_cur_num == 0)
         {
             pthread_cond_signal(&(pool->queue_empty));
         }
@@ -175,8 +175,10 @@ void* ThreadPool::tp_fun(void *arg)
             pthread_cond_broadcast(&(pool->queue_not_full));
         }
 
+        pthread_mutex_unlock(&(pool->mutex));
+
         (*(pjob->callback_function))(pjob->arg);
         free(pjob);
-        pjob = nullptr;*/
+        pjob = nullptr;
     }
 }

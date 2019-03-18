@@ -18,8 +18,8 @@ public:
     ThreadPool(int thread_num, int queue_max_num);
     ~ThreadPool();
     void tp_init(int thread_num, int queue_max_num);
-    int tp_destroy(ThreadPool *pool);
-    int tp_addtask(ThreadPool *pool, void* (*callback_function)(void *arg), void *arg);
+    int tp_destroy();
+    int tp_addtask(void* (*callback_function)(void *arg), void *arg);
     static void* tp_fun(void *arg);
 
     int thread_num;  //线程池中开启线程的个数
