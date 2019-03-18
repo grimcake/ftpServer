@@ -15,10 +15,12 @@ struct job
 class ThreadPool
 {
 public:
-    ThreadPool();
+    ThreadPool(int thread_num, int queue_max_num);
     ~ThreadPool();
-    ThreadPool* tp_init(int thread_num, int queue_max_num);
-    int tp_addtask(ThreadPool* pool, void* (*callback_function)(void *arg), void *arg);
+    void tp_init(int thread_num, int queue_max_num);
+    int tp_destroy(ThreadPool *pool);
+    int tp_addtask(ThreadPool *pool, void* (*callback_function)(void *arg), void *arg);
+    static void* tp_fun(void *arg);
 
     int thread_num;  //线程池中开启线程的个数
     int queue_max_num; //队列中最大job的个数
@@ -33,6 +35,6 @@ public:
     int pool_close;      //线程池是否已经关闭
 
 private:
-
+    int mytest;
 };
 
